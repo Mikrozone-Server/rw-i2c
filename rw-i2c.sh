@@ -264,9 +264,9 @@ then
 		echo "File must be specified for writing"
 		exit 7
 	fi
-	echo "Here is the output of i2cdump -y $BUS $chipAddress"
-	i2cdump -y "$BUS" "$chipAddress"
+	echo "Here is the binary output of i2cdump -y $BUS $chipAddress"
+	i2cdump -y "$BUS" "$chipAddress " | xxd -r 
 	echo "Now we write it to $file"
-	i2cdump -y "$BUS" "$chipAddress" > $FILE
+	i2cdump -y "$BUS" "$chipAddress" | xxd -r > $FILE
 	exit
 fi
