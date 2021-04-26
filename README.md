@@ -9,14 +9,19 @@ Need to install I2tool package:
 
 Next, use the "sudo i2cdetect -l" for list of all I2C buses in your PC
 
-# usage:
+# Usage
+
+Read from I2C device and write to the file:
+
  rw-i2c -r -b bus [-c chip_address] [-l size] -f filename
- 
+
+Write to I2C device from the file:
+
  rw-i2c -w -b bus [-c chip_address] -s start_addr [-l size] [-f filename]
  
  default chip address is 0x50
 
-# exit codes:
+# Exit codes:
  1: Input file does not exist or can't be found
  
  2: Input file can be found but can not be read
