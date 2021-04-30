@@ -12,7 +12,7 @@ Next, use the `sudo i2cdetect -l` for list of all I2C buses in your PC
 
 Read from I2C device and write to the file:
 
- `rw-i2c -r -b bus [-c chip_address] [-l size] -f filename`
+ `rw-i2c -r -b bus [-c chip_address] -s start_addr [-l size] -f filename`
 
 Write to I2C device from the file:
 
