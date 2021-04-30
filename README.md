@@ -12,13 +12,18 @@ Next, use the `sudo i2cdetect -l` for list of all I2C buses in your PC
 
 Read from I2C device and write to the file:
 
- `rw-i2c -r -b bus [-c chip_address] -s start_addr [-l size] -f filename`
+ `rw-i2c -r -b bus [-c chip_address] [-s start_addr] [-l size] -f filename`
 
 Write to I2C device from the file:
 
- `rw-i2c -w -b bus [-c chip_address] -s start_addr [-l size] [-f filename]`
+ `rw-i2c -w -b bus [-c chip_address] [-s start_addr] [-l size] -f filename`
  
  default chip address is 0x50
+ 
+ default start_addr is 0x00
+ 
+ default size is 1 byte
+
 
 # Exit codes:
  1: Input file does not exist or can't be found
