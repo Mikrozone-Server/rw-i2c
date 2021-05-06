@@ -1,46 +1,30 @@
 # rw-i2c
 I2C read-write script
 
-Used for read/write data via the I2C bus, and write/read from/to binary file.
+Used for read/write data via the I2C bus with writing/reading from/to binary file.
 
-# Before
-Need to install I2tool package: `sudo apt install i2c-tool`
+## Dependencies
+- I2C Tools for Linux `sudo apt install i2c-tools`
 
-Next, use the `sudo i2cdetect -l` for list of all I2C buses in your PC
+## Usage
+- List all I2C buses in yur PC
+  - `sudo i2cdetect -l`
+  
+## Examples
+- Read data from I2C device via bus `i2c-1` on address `0xA0` and write them to file `out.bin`
+  - `rw-i2c -r -b 1 -c 0xA0 -f out.bin`
+- Write data to I2C device via bus `i2c-2` on address `0x60` from file `in.bin`
+  - `rw-i2c -w -b 2 -f in.bin`
+- Write data to I2C device via bus `i2c-2` and device start address `10` from `stdin`
+  - `rw-i2c -w -b 2 -s 10`
 
-# Usage
+> The default chip address is 0x50.  
+> The default start address is 0.
 
-Read from I2C device and write to the file:
-
- `rw-i2c -r -b bus [-c chip_address] [-s start_addr] [-l size] -f filename`
-
-Write to I2C device from the file:
-
- `rw-i2c -w -b bus [-c chip_address] [-s start_addr] [-l size] -f filename`
- 
- default chip address is 0x50
- 
- default start_addr is 0x00
- 
- default size is 1 byte
-
-
-# Exit codes:
- 1: Input file does not exist or can't be found
- 
- 2: Input file can be found but can not be read
- 
- 3: Argument parsing error
- 
- 4: Multiple files specified
- 
- 5: Neither R not W option is applied
- 
- 6: BOTH R and W options are applied
- 
- 7: For read mode: no file to write the dump to was specified
- 
- 8: No Bus was specified
- 
-42: Size parameter is not yet implemented. Sorry. 
+## Exit codes
+1: Argument parsing error  
+2: Neither `r` not `w` option was specified  
+3: I2c communication bus missing  
+4: Start address format error  
+5: Input file handling error
 
