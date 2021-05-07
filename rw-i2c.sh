@@ -41,7 +41,7 @@ print_help() {
   echo " [-c | --chip_addr <hex_addr>] ... chip address (default value is 0x50)"
   #echo " [-l|length <size>] ... size not implemented yet
   echo "Options (valid only for 'write' mode)"
-  echo " [-s | --start_addr <address>  ... start address (default value is 0)"
+  echo " [-s | --start_addr <hex_addr> ... start address (default value is 0x00)"
   echo " [-f | --file <filename>]      ... file to be written (default value is stdin)"
   echo "Options (valid only for 'read' mode)"
   echo "  -f | --file <filename>       ... file to be read"
@@ -52,8 +52,8 @@ print_help() {
 READ_MODE=-1
 BUS=""
 CHIP_ADDR=0x50
-START_ADDR=0
 #SIZE=0
+START_ADDR=0x00
 FILENAME=""
 
 # check options
@@ -132,9 +132,9 @@ if ! i2cdetect -l | grep -q "i2c-$BUS"$(printf '\t'); then
   exit 3
 fi
 
-# check is start address is in decimal format
-if ! echo $START_ADDR | grep -q -E "^[0-9]+$"; then
-  echo "ERR: start address has to be in decimal format"
+# check if start address is in hex format
+if ! echo $START_ADDR | grep -q -E "^0x[0-9a-fA-F]+$"; then
+  echo "ERR: start address '$START_ADDR' has to be in hex format"
   exit 4
 fi
 
