@@ -17,16 +17,13 @@
 # You can find out the bus number with ic2detect -l. Address 0x50
 # should be available as the EDID data goes there.
 
-# max bytes count to be read
-MAX_BYTES_CNT=128
-
 #exit codes:
 # 1: Argument parsing error
 # 2: Neither R not W option was specified
 # 3: Communication bus missing
 # 4: Start address format error
-# 5: Input file does not exist or can not be found
-# 5: Input file can be found or can not be read
+# 5: Length format error
+# 6: Input file handling error
 
 
 # function to print help
@@ -39,9 +36,9 @@ print_help() {
   echo "Options:"
   echo "  -b | --bus <bus_number>      ... i2c communication bus"
   echo " [-c | --chip_addr <hex_addr>] ... chip address (default value is 0x50)"
-  #echo " [-l|length <size>] ... size not implemented yet
+  echo " [-l | --length <size>]        ... length in bytes (default valur is 128)"
   echo "Options (valid only for 'write' mode)"
-  echo " [-s | --start_addr <address>  ... start address (default value is 0)"
+  echo " [-s | --start_addr <hex_addr> ... start address (default value is 0x00)"
   echo " [-f | --file <filename>]      ... file to be written (default value is stdin)"
   echo "Options (valid only for 'read' mode)"
   echo "  -f | --file <filename>       ... file to be read"
@@ -52,8 +49,8 @@ print_help() {
 READ_MODE=-1
 BUS=""
 CHIP_ADDR=0x50
-START_ADDR=0
-#SIZE=0
+START_ADDR=0x00
+MAX_BYTES_CNT=128
 FILENAME=""
 
 # check options
@@ -99,6 +96,10 @@ while [ $# -ge 1 ]; do
       shift
       CHIP_ADDR=$1
       ;;
+    -l|--length)
+      shift
+      MAX_BYTES_CNT=$1
+      ;;
     -s|--start_addr)
       shift
       if [ $READ_MODE -eq 0 ]; then
@@ -132,10 +133,15 @@ if ! i2cdetect -l | grep -q "i2c-$BUS"$(printf '\t'); then
   exit 3
 fi
 
-# check is start address is in decimal format
-if ! echo $START_ADDR | grep -q -E "^[0-9]+$"; then
-  echo "ERR: start address has to be in decimal format"
+# check if start address is in hex format
+if ! echo $START_ADDR | grep -q -E "^0x[0-9a-fA-F]+$"; then
+  echo "ERR: start address '$START_ADDR' has to be in hex format"
   exit 4
+fi
+
+if ! echo $MAX_BYTES_CNT | grep -q -E "^[0-9]+$"; then
+  echo "ERR: bytes count '$MAX_BYTES_CNT' has to be in decimal format"
+  exit 5
 fi
 
 # write mode
@@ -146,7 +152,7 @@ if [ $READ_MODE -eq 0 ]; then
   else
     if [ ! -r "$FILENAME" ]; then
       echo "ERR: Can not read $FILENAME"
-      exit 5
+      exit 6
     fi
   fi
 
@@ -171,19 +177,19 @@ if [ $READ_MODE -eq 0 ]; then
 else
   if [ -z "$FILENAME" ]; then
     echo "ERR: Output file missing"
-    exit 5
+    exit 6
   fi
 
   outpath="$(dirname $FILENAME)"
   if [ ! -d "$outpath" ] || [ ! -w "$outpath" ]; then
     echo "ERR: Output directory is not existing or is not writable"
-    exit 5
+    exit 6
   fi
 
   echo "Here is the HEX output of i2cdump -y $BUS $CHIP_ADDR"
   i2cdump -y "$BUS" $CHIP_ADDR
   echo "Now we write it to '$FILENAME' in binary format".
-  i2cdump -y "$BUS" $CHIP_ADDR | xxd -r -p > "$FILENAME"
+  i2cdump -y "$BUS" $CHIP_ADDR | xxd -r -p -l $MAX_BYTES_CNT > "$FILENAME"
 fi
 
 exit 0
