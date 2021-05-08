@@ -21,9 +21,11 @@
 # 1: Argument parsing error
 # 2: Neither R not W option was specified
 # 3: Communication bus missing
-# 4: Start address format error
-# 5: Length format error
-# 6: Input file handling error
+# 4: In-out file handling error
+# 5: Chip address format error
+# 6: Length format error
+# 7: Byte offset format error
+# 8: Start address format error
 
 
 # function to print help
@@ -34,15 +36,30 @@ print_help() {
   echo "  -r | --read  ... read data from addr"
   echo "  -w | --write ... write data to addr"
   echo "Options:"
-  echo "  -b | --bus <bus_number>      ... i2c communication bus"
-  echo " [-c | --chip_addr <hex_addr>] ... chip address (default value is 0x50)"
-  echo " [-l | --length <size>]        ... length in bytes (default valur is 128)"
+  echo "  -b | --bus <bus_number>       ... i2c communication bus"
+  echo " [-c | --chip_addr <hex_addr>]  ... chip address (default value is 0x50)"
+  echo " [-l | --length <size>]         ... length in bytes (default valur is 128)"
+  echo " [-o | --offset <bytes>]        ... offset in bytes for writing (default value is 0)"
   echo "Options (valid only for 'write' mode)"
-  echo " [-s | --start_addr <hex_addr> ... start address (default value is 0x00)"
-  echo " [-f | --file <filename>]      ... file to be written (default value is stdin)"
+  echo " [-s | --start_addr <hex_addr>] ... start address (default value is 0x00)"
+  echo " [-f | --file <filename>]       ... file to be written (default value is stdin)"
   echo "Options (valid only for 'read' mode)"
-  echo "  -f | --file <filename>       ... file to be read"
+  echo "  -f | --file <filename>        ... file to be read"
   exit $1
+}
+
+# function to check decimal format
+#  returns: 0 if format is correct, otherwise 1
+check_dec_format() {
+  if echo $1 | grep -q -E "^[0-9]+$"; then return 0; fi
+  return 1
+}
+
+# function to check hex format
+#  returns: 0 if format is correct, otherwise 1
+check_hex_format() {
+  if echo $1 | grep -q -E "^0x[0-9a-fA-F]+$"; then return 0; fi
+  return 1
 }
 
 # initialize options variables
@@ -50,6 +67,7 @@ READ_MODE=-1
 BUS=""
 CHIP_ADDR=0x50
 START_ADDR=0x00
+WRITE_OFFSET=0
 MAX_BYTES_CNT=128
 FILENAME=""
 
@@ -100,6 +118,10 @@ while [ $# -ge 1 ]; do
       shift
       MAX_BYTES_CNT=$1
       ;;
+    -o|--offset)
+      shift
+      WRITE_OFFSET=$1
+      ;;
     -s|--start_addr)
       shift
       if [ $READ_MODE -eq 0 ]; then
@@ -133,15 +155,28 @@ if ! i2cdetect -l | grep -q "i2c-$BUS"$(printf '\t'); then
   exit 3
 fi
 
-# check if start address is in hex format
-if ! echo $START_ADDR | grep -q -E "^0x[0-9a-fA-F]+$"; then
-  echo "ERR: start address '$START_ADDR' has to be in hex format"
-  exit 4
+# check if chip address is in hex format
+if ! check_hex_format $CHIP_ADDR; then
+  echo "ERR: chip address '$CHIP_ADDR' has to be in hex format"
+  exit 5
 fi
 
-if ! echo $MAX_BYTES_CNT | grep -q -E "^[0-9]+$"; then
+# check if max byte count is in dec format
+if ! check_dec_format $MAX_BYTES_CNT; then
   echo "ERR: bytes count '$MAX_BYTES_CNT' has to be in decimal format"
-  exit 5
+  exit 6
+fi
+
+# check if offset is in dec format
+if ! check_dec_format $WRITE_OFFSET; then
+  echo "ERR: byte offset '$WRITE_OFFSET' has to be in decimal format"
+  exit 7
+fi
+
+# check if start address is in hex format
+if ! check_hex_format $START_ADDR ; then
+  echo "ERR: start address '$START_ADDR' has to be in hex format"
+  exit 8
 fi
 
 # write mode
@@ -152,13 +187,13 @@ if [ $READ_MODE -eq 0 ]; then
   else
     if [ ! -r "$FILENAME" ]; then
       echo "ERR: Can not read $FILENAME"
-      exit 6
+      exit 4
     fi
   fi
 
   # process MAX_BYTES_CNT bytes from input file
   count=$START_ADDR
-  xxd -p -g 0 -u -c 1 -l $MAX_BYTES_CNT "$FILENAME" | while read -r byte; do
+  xxd -p -g 0 -u -c 1 -s $WRITE_OFFSET -l $MAX_BYTES_CNT "$FILENAME" | while read -r byte; do
     # convert counter to hex numbers of lentgh two, padded with zeros
     address=$(printf "0x%02X" $count)
     value=0x${byte}
@@ -177,19 +212,19 @@ if [ $READ_MODE -eq 0 ]; then
 else
   if [ -z "$FILENAME" ]; then
     echo "ERR: Output file missing"
-    exit 6
+    exit 4
   fi
 
   outpath="$(dirname $FILENAME)"
   if [ ! -d "$outpath" ] || [ ! -w "$outpath" ]; then
     echo "ERR: Output directory is not existing or is not writable"
-    exit 6
+    exit 4
   fi
 
   echo "Here is the HEX output of i2cdump -y $BUS $CHIP_ADDR"
   i2cdump -y "$BUS" $CHIP_ADDR
-  echo "Now we write it to '$FILENAME' in binary format".
-  i2cdump -y "$BUS" $CHIP_ADDR | xxd -r -p -l $MAX_BYTES_CNT > "$FILENAME"
+  echo "Now we write it to '$FILENAME' in binary format including offset and max bytes count".
+  i2cdump -y "$BUS" $CHIP_ADDR | xxd -r -p -s $WRITE_OFFSET -l $MAX_BYTES_CNT > "$FILENAME"
 fi
 
 exit 0
