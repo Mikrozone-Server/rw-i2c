@@ -27,6 +27,10 @@
 # 7: Byte offset format error
 # 8: Start address format error
 
+# max bytes writes in one block
+MAX_BYTES_IN_BLOCK_CNT=32
+# '0xXX '
+BYTE_CHAR_WIDTH=5
 
 # function to print help
 print_help() {
@@ -42,6 +46,7 @@ print_help() {
   echo " [-o | --offset <bytes>]        ... offset in bytes for writing (default value is 0)"
   echo "Options (valid only for 'write' mode)"
   echo " [-s | --start_addr <hex_addr>] ... start address (default value is 0x00)"
+  echo " [-q | --quick]                 ... enable quick transfer (default vaue is disabled)"
   echo " [-f | --file <filename>]       ... file to be written (default value is stdin)"
   echo "Options (valid only for 'read' mode)"
   echo "  -f | --file <filename>        ... file to be read"
@@ -69,6 +74,7 @@ CHIP_ADDR=0x50
 START_ADDR=0x00
 WRITE_OFFSET=0
 MAX_BYTES_CNT=128
+BLOCK_TRANSFER=0
 FILENAME=""
 
 # check options
@@ -131,6 +137,14 @@ while [ $# -ge 1 ]; do
         print_help 1
       fi
       ;;
+    -q|--quick)
+      if [ $READ_MODE -eq 0 ]; then
+        BLOCK_TRANSFER=1
+      else
+        echo "ERR: mode 'READ' does not support quick transfer"
+        print_help 1
+      fi
+      ;;
     -f|--file)
       shift
       FILENAME="$1"
@@ -183,6 +197,7 @@ fi
 if [ $READ_MODE -eq 0 ]; then
   # check if filename was specified, otherswise stdin will be used
   if [ -z "$FILENAME" ]; then
+    echo "Waiting for data from stdin..."
     FILENAME="/dev/stdin"
   else
     if [ ! -r "$FILENAME" ]; then
@@ -192,17 +207,25 @@ if [ $READ_MODE -eq 0 ]; then
   fi
 
   # process MAX_BYTES_CNT bytes from input file
+  bytes=$(xxd -p -g 0 -u -c 1 -s $WRITE_OFFSET -l $MAX_BYTES_CNT "$FILENAME" | sed "s/\</0x/g")
+  
+  # split bytes in block transfer by max count
+  [ $BLOCK_TRANSFER -eq 1 ] && bytes="$(echo $bytes | sed "s/.\{"$(( MAX_BYTES_IN_BLOCK_CNT * BYTE_CHAR_WIDTH ))"\}/&\n/g")"
+
+  # set starting address
   count=$START_ADDR
-  xxd -p -g 0 -u -c 1 -s $WRITE_OFFSET -l $MAX_BYTES_CNT "$FILENAME" | while read -r byte; do
+
+  echo "$bytes" | while read -r values; do
     # convert counter to hex numbers of lentgh two, padded with zeros
     address=$(printf "0x%02X" $count)
-    value=0x${byte}
+    # strip last ' '
+    value="$(echo $values | paste -s -d ' ')"
     # give some feedback
-    echo "Writing byte '$value' to bus $BUS, chip-adress '$CHIP_ADDR', data-adress '$address'"
-    # write date to bus (with interactive mode disabled)
-    i2cset -y "$BUS" $CHIP_ADDR $address $value
-    # increment counter
-    count=$((count+1))
+    echo "Writing value '$value' to bus $BUS, chip-adress '$CHIP_ADDR', data-adress '$address'"
+    # write data to bus (with interactive mode disabled)
+    i2cset -y "$BUS" $CHIP_ADDR $address $value $([ $BLOCK_TRANSFER -eq 1 ] && echo i)
+    # increment counter based on value length
+    count=$((count + (( ${#value} + 1 ) / BYTE_CHAR_WIDTH ) ))
     # sleep a moment
     sleep 0.1s
   done
