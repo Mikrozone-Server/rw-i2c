@@ -21,11 +21,14 @@ Used for read/write data via the I2C bus with writing/reading from/to binary fil
   - `rw-i2c -w -b 2 -o 10 -f in.bin`
 - Write data (10B) to I2C device via bus `i2c-2` from file `in.bin`
   - `rw-i2c -w -b 2 -l 10 -f in.bin`
+- Write data to I2C device via bus `i2c-1` from file `in.bin` in quick (block) mode
+  - `rw-i2c -w -b 1 -q -f in.bin`
 
 > The default chip address is 0x50.  
 > The default start address is 0x00.  
 > The default byte offset is 0B.  
-> The default length is 128B.
+> The default length is 128B.  
+> The default transfer mode is sequential.
 
 ## Exit codes
 1: Argument parsing error  
